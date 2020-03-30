@@ -1,62 +1,188 @@
-<!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="utf-8">
-        <title>Information about Kangaroos</title>
-    </head>
-    <style>
-        
-    </style>
-    <body>
 
-    <h1 id="kangaroos">Kangaroos</h1>
+angleMode = "degrees";
+
+var Spring = function(x, y, l) {
+    this.anchor = new PVector(x, y);
+    this.restLength = l;
+    this.k = 0.2;
+};
+
+// Calculate and apply spring force
+Spring.prototype.connect = function(b) {
+    // Vector pointing from anchor to bob location
+    var force = PVector.sub(b.position, this.anchor);
+    // What is distance
+    var d = force.mag();
+    // Stretch is difference between current distance and rest length
+    var stretch = d - this.restLength;
     
-    <p>Jump to sections: 
-        <a href="#locomotion">Locomotion</a>,
-        <a href="#diet">Diet</a>
-        <a href="#terminology>Terminology</a>
-    </p>
-    <p>The <strong>kangaroo</strong> is a marsupial from the family Macropodidae (macropods, meaning 'large foot'). In common use the term is used to describe the largest species from this family, especially those of the genus Macropus, red kangaroo, antilopine kangaroo, eastern grey kangaroo and western grey kangaroo. Kangaroos are endemic to Australia, and one genus, the tree-kangaroo, is also found in Papua New Guinea.</p>
+    // Calculate force according to Hooke's Law
+    // F = k * stretch
+    force.normalize();
+    force.mult(-1 * this.k * stretch);
+    b.applyForce(force);
+};
 
-    <p>Kangaroos have large, powerful hind legs, large feet adapted for leaping, a long muscular tail for balance, and a small head. Like most marsupials, female kangaroos have a pouch called a marsupium in which joeys complete postnatal development.</p>
+// Constrain the distance between bob and anchor between min and max
+Spring.prototype.constrainLength = function(b, minLength, maxLength) {
+    var dir = PVector.sub(b.position, this.anchor);
+    var d = dir.mag();
+    // Is it too short?
+    if (d < minLength) {
+        dir.normalize();
+        dir.mult(minLength);
+        // Reset location and stop from moving (not realistic physics)
+        b.position = PVector.add(this.anchor, dir);
+        b.velocity.mult(0);
+        // Is it too long?
+    } 
+    else if (d > maxLength) {
+        dir.normalize();
+        dir.mult(maxLength);
+        // Reset location and stop from moving (not realistic physics)
+        b.position = PVector.add(this.anchor, dir);
+        b.velocity.mult(0);
+    }
+};
 
-    <p>Larger kangaroos have adapted much better than smaller macropods to land clearing for pastoral agriculture and habitat changes brought to the Australian landscape by humans. Many of the smaller species are rare and endangered, whilst the larger kangaroos are relatively plentiful.</p>
+Spring.prototype.displayLine = function(b) {
+    strokeWeight(2);
+    stroke(0);
+    stroke(219, 127, 224);
+    strokeWeight(30);
+    line(b.position.x, b.position.y, this.anchor.x, this.anchor.y);
+};
+
+// Bob object, just like our regular Mover (location, velocity, acceleration, mass)
+
+var Bob = function(x, y) {
+    this.position = new PVector(x,y);
+    this.velocity = new PVector();
+    this.acceleration = new PVector();
+    this.mass = 24;
+    // Arbitrary damping to simulate friction / drag
+    this.damping = 0.98;
+    // For user interaction
+    this.dragOffset = new PVector();
+    this.dragging = false;
+};
+
+// Standard Euler integration
+Bob.prototype.update = function() { 
+    this.velocity.add(this.acceleration);
+    this.velocity.mult(this.damping);
+    this.position.add(this.velocity);
+    this.acceleration.mult(0);
+};
+
+// Newton's law: F = M * A
+Bob.prototype.applyForce = function(force) {
+    var f = force.get();
+    f.div(this.mass);
+    this.acceleration.add(f);
+};
+
+// Draw the bob(cat)
+Bob.prototype.display = function() {
     
+    stroke(0);
+    strokeWeight(2);
+    fill(224, 206, 119);
+    if (this.dragging) {
+        fill(158, 139, 54);
+    }
     
-    <h3 id="locomotion">Locomotion</h3>
+    // draw arms 
+    rectMode(CENTER);
+    rect(this.position.x-20, this.position.y+20, 10, 70, 10);
+    rect(this.position.x+20, this.position.y+20, 10, 70, 10);
     
-    <p>A Tasmanian forester (eastern grey) kangaroo in motion.
-Kangaroos are the only large animals to use hopping as a means of locomotion. The comfortable hopping speed for a red kangaroo is about 20–25 km/h (13–16 mph), but speeds of up to 70 km/h (44 mph) can be attained over short distances, while it can sustain a speed of 40 km/h (25 mph) for nearly 2 km (1.2 mi). This fast and energy-efficient method of travel has evolved because of the need to regularly cover large distances in search of food and water, rather than the need to escape predators. At slow speeds, it employs pentapedal locomotion, using its tail to form a tripod with its two forelimbs while bringing its hind feet forward. Kangaroos are adept swimmers, and often flee into waterways if threatened by a predator. If pursued into the water, a kangaroo may use its forepaws to hold the predator underwater so as to drown it.</p>
-
-    <h3 id="diet">Diet</h3>
+    // draw body
+    var facePosition = new PVector(this.position.x, this.position.y+50);
+    rect(facePosition.x, facePosition.y+45, 46, 89, 30);
     
-    <p>Kangaroos have chambered stomachs similar to those of cattle and sheep. They regurgitate the vegetation they have eaten, chew it as cud, and then swallow it again for final digestion. Different species of kangaroos have different diets, although all are strict herbivores. The eastern grey kangaroo is predominantly a grazer, eating a wide variety of grasses, whereas some other species (e.g. the red kangaroo) include significant amounts of shrubs in their diets. The smaller species of kangaroos also consume hypogeal fungi. Many species are nocturnal, and crepuscular, usually spending the days resting in shade, and the cool evenings, nights and mornings moving about and feeding.</p>
-
-    <p>Because of its grazing habits, the kangaroo has developed specialized teeth. Its incisors are able to crop grass close to the ground, and its molars chop and grind the grass. Since the two sides of the lower jaw are not joined together, the lower incisors are farther apart, giving the kangaroo a wider bite. The silica in grass is abrasive, so kangaroo molars move forward as they are ground down, and eventually fall out, replaced by new teeth that grow in the back. This process is known as polyphyodonty and amongst other mammals, only occurs in elephants and manatees.</p>
+    // draw legs
+    rect(this.position.x-20, this.position.y+150, 10, 60, 10);
+    rect(this.position.x+20, this.position.y+150, 10, 60, 10);
     
+    // draw face
+    triangle(facePosition.x-10, facePosition.y-20, 
+        facePosition.x-20, facePosition.y-15,
+        facePosition.x-20, facePosition.y-30);
+    triangle(facePosition.x+10, facePosition.y-20, 
+        facePosition.x+20, facePosition.y-15,
+        facePosition.x+20, facePosition.y-30);
+    ellipse(facePosition.x, facePosition.y, 48, 48);
+    fill(0, 0, 0);
+    ellipse(facePosition.x-8, facePosition.y-8, 5, 5);
+    ellipse(facePosition.x+8, facePosition.y-8, 5, 5);
+    ellipse(facePosition.x, facePosition.y, 5, 5);
+    noFill();
+    arc(facePosition.x-6, facePosition.y, 13, 25, 0, 150);
+    arc(facePosition.x+6, facePosition.y, 13, 25, 30, 180);
     
-        <h3 id="terminology">Terminology</h3>
-        <p>
-            The word "kangaroo" derives from the Guugu Yimithirr word gangurru, referring to grey kangaroos. The name was first recorded as "kanguru" on 12 July 1770 in an entry in the diary of Sir Joseph Banks; this occurred at the site of modern Cooktown, on the banks of the Endeavour River, where HMS Endeavour under the command of Lieutenant James Cook was beached for almost seven weeks to repair damage sustained on the Great Barrier Reef. Cook first referred to kangaroos in his diary entry of 4 August. Guugu Yimithirr is the language of the people of the area.
+};
 
-A common myth about the kangaroo's English name is that "kangaroo" was a Guugu Yimithirr phrase for "I don't understand you. According to this legend, Cook and Banks were exploring the area when they happened upon the animal. They asked a nearby local what the creatures were called. The local responded "Kangaroo", meaning "I don't understand you", which Cook took to be the name of the creature. This myth was debunked in the 1970s by linguist John B. Haviland in his research with the Guugu Yimithirr people.
+Bob.prototype.handleClick = function(mx, my) {
+    var d = dist(mx, my, this.position.x, this.position.y+50);
+    if (d < this.mass) {
+        this.dragging = true;
+        this.dragOffset.x = this.position.x-mx;
+        this.dragOffset.y = this.position.y-my;
+    }
+};
 
-Kangaroos are often colloquially referred to as "roos". Male kangaroos are called bucks, boomers, jacks, or old men; females are does, flyers, or jills, and the young ones are joeys. The collective noun for kangaroos is a mob, troop, or court.
-        </p>
-           <h3 id="taxonomy_and_description">Taxonomy and description</h3>
-             <p>
-               There are four species that are commonly referred to as kangaroos:
+Bob.prototype.stopDragging = function() {
+    this.dragging = false;
+};
 
-The red kangaroo (Macropus rufus) is the largest surviving marsupial anywhere in the world. It occupies the arid and semi-arid centre of the country. The highest population densities of the red kangaroo occur in the rangelands of western New South Wales. Red kangaroos are commonly mistaken as the most abundant species of kangaroo, but eastern greys actually have a larger population. A large male can be 2 metres (6 ft 7 in) tall and weigh 90 kg (200 lb).
-The eastern grey kangaroo (Macropus giganteus) is less well-known than the red (outside Australia), but the most often seen, as its range covers the fertile eastern part of the country. The range of the eastern grey kangaroo extends from the top of the Cape York Peninsula in north Queensland down to Victoria, as well as areas of south-eastern Australia and Tasmania. Population densities of eastern grey kangaroos usually peak near 100 per km2 in suitable habitats of open woodlands. Populations are more limited in areas of land clearance, such as farmland, where forest and woodland habitats are limited in size or abundance.
-The western grey kangaroo (Macropus fuliginosus) is slightly smaller again at about 54 kg (119 lb) for a large male. It is found in the southern part of Western Australia, South Australia near the coast, and the Darling River basin. The highest population densities occur in the western Riverina district of New South Wales and in western areas of the Nullarbor Plain in Western Australia. Populations may have declined, particularly in agricultural areas. The species has a high tolerance to the plant toxin sodium fluoroacetate, which indicates a possible origin from the south-west region of Australia.
-The antilopine kangaroo (Macropus antilopinus) is, essentially, the far-northern equivalent of the eastern and western grey kangaroos. It is sometimes referred to as the antilopine wallaroo, but in behaviour and habitat it is more similar to red and grey kangaroos. Like them, it is a creature of the grassy plains and woodlands, and gregarious. Its name comes from its fur, which is similar in colour and texture to that of antelopes. Characteristically, the noses of males swell behind the nostrils. This enlarges nasal passages and allows them to release more heat in hot and humid climates.
-                                            <h3 id="wallabies>Comparison with wallabies</h3>
-    <p>
-       Kangaroos and wallabies belong to the same taxonomic family (Macropodidae) and often the same genera, but kangaroos are specifically categorised into the six largest species of the family. The term wallaby is an informal designation generally used for any macropod that is smaller than a kangaroo or wallaroo that has not been designated otherwise.                                            
-        </p>
-    <a href="#kangaroos">Back to the top</a>
-    <a href="http://en.wikipedia.org/wiki/Kangaroo">Read more on Wikipedia</a>
-    </p>
-    </body>
-</html>
+Bob.prototype.handleDrag = function(mx, my) {
+    if (this.dragging) {
+        this.position.x = mx + this.dragOffset.x;
+        this.position.y = my + this.dragOffset.y;
+    }
+};
+
+// Create objects at starting location
+// Note third argument in Spring constructor is "rest length"
+var bob = new Bob(width/2, 100); 
+var spring = new Spring(width/2, 10, 100); 
+bob.position.set(width/2, height/2);
+
+draw = function()  {
+  background(255); 
+  // Apply a gravity force to the bob
+  var gravity = new PVector(0,2);
+  bob.applyForce(gravity);
+  
+  // Connect the bob to the spring (this calculates the force)
+  spring.connect(bob);
+  // Constrain spring distance between min and max
+  spring.constrainLength(bob, 30, 200);
+  
+  // Update bob
+  bob.update();
+  
+  // Draw everything
+  spring.displayLine(bob); // Draw a line between spring and bob
+  bob.display(); 
+  
+  fill(0);
+  textSize(20);
+  textFont(createFont("monospace"));
+  text("Cat got your tongue?", 86, height-37);
+  textSize(10);
+  text("click on bob's face to drag", 122, height-16);
+};
+
+mousePressed = function() {
+  bob.handleClick(mouseX, mouseY);
+};
+
+mouseDragged = function() {
+  bob.handleDrag(mouseX, mouseY);
+};
+
+mouseReleased = function() {
+  bob.stopDragging();
+};
